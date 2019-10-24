@@ -23,7 +23,7 @@ LIB=-llapack -lboost_system -lboost_filesystem
 
 # Build LIFE
 $(EXE): $(OBJS)
-	$(CC) $(CFLAGS) -o $@ $^ $(LIB)
+	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS) $(LIB)
 
 # Build object files
 $(OBJS): $(ODIR)/%.o : $(SDIR)/%.cpp
