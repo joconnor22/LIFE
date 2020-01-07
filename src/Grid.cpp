@@ -1019,11 +1019,11 @@ void GridClass::writeRestart() {
 
 	// Create file
 	ofstream output;
-	output.open("Results/Restart/Fluid.restart", ios::binary);
+	output.open("Results/Restart/Fluid.restart.temp", ios::binary);
 
 	// Handle failure to open
 	if (!output.is_open())
-		ERROR("Error opening Fluid.restart file...exiting");
+		ERROR("Error opening Fluid.restart.temp file...exiting");
 
 	// Swap byte order if bigEndian
 	int tWrite = (bigEndian ? Utils::swapEnd(t) : t);
@@ -1078,6 +1078,9 @@ void GridClass::writeRestart() {
 
 	// Close file
 	output.close();
+
+	// Now rename the temp file
+	boost::filesystem::rename("Results/Restart/Fluid.restart.temp", "Results/Restart/Fluid.restart");
 }
 
 // Constructor

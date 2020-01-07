@@ -1213,11 +1213,11 @@ void ObjectsClass::writeRestart() {
 
 		// Open file
 		ofstream outputIBM;
-		outputIBM.open("Results/Restart/IBM.restart", ios::binary);
+		outputIBM.open("Results/Restart/IBM.restart.temp", ios::binary);
 
 		// Handle failure to open
 		if (!outputIBM.is_open())
-			ERROR("Error opening IBM.restart file...exiting");
+			ERROR("Error opening IBM.restart.temp file...exiting");
 
 		// Swap byte order if bigEndian
 		size_t ibSizeWrite = (bigEndian ? Utils::swapEnd(iBody.size()) : iBody.size());
@@ -1259,6 +1259,9 @@ void ObjectsClass::writeRestart() {
 
 		// Close file
 		outputIBM.close();
+
+		// Now rename the temp file
+		boost::filesystem::rename("Results/Restart/IBM.restart.temp", "Results/Restart/IBM.restart");
 	}
 
 	// ** FEM FILE ** //
@@ -1269,11 +1272,11 @@ void ObjectsClass::writeRestart() {
 
 		// Open file
 		ofstream outputFEM;
-		outputFEM.open("Results/Restart/FEM.restart", ios::binary);
+		outputFEM.open("Results/Restart/FEM.restart.temp", ios::binary);
 
 		// Handle failure to open
 		if (!outputFEM.is_open())
-			ERROR("Error opening FEM.restart file...exiting");
+			ERROR("Error opening FEM.restart.temp file...exiting");
 
 		// Swap byte order if bigEndian
 		int flexWrite = (bigEndian ? Utils::swapEnd(nFlex) : nFlex);
@@ -1361,6 +1364,9 @@ void ObjectsClass::writeRestart() {
 
 		// Close file
 		outputFEM.close();
+
+		// Now rename the temp file
+		boost::filesystem::rename("Results/Restart/FEM.restart.temp", "Results/Restart/FEM.restart");
 	}
 }
 
