@@ -25,7 +25,7 @@ The LIFE project is organised into five folders:
  - **src**: contains the project source files
 
 ### Case Definition
-LIFE used two files to define the case setup:
+LIFE uses two files to define the case setup:
 
  - **params.h**: sets up the domain and flow conditions
  - **geometry.config**: specifies the immersed boundary bodies (rigid/flexible)
@@ -57,3 +57,15 @@ LIFE creates a directory called **Results**. This folder contains VTK and log fi
 
 ### Restarting
 LIFE has support for restarting a simulation from where it left off. To do this just re-run the executable. There is also support for changing the **geometry.config** between restarts to add/remove bodies mid-simulation.
+
+# Contributing
+To contribute to LIFE please follow these steps:
+
+ 1. Fork the repository and then clone the fork to your local machine.
+ 2. On the current master branch run the **store-ref-data** script to generate the test data which will be used for testing your new changes.
+ 3. Implement and test your new features/functionality.
+ 4. If implementing a substantial new feature then add a new example to the **examples** directory to showcase this.
+ 5. Run the **run-tests** script to make sure LIFE still produces the same results for the existing example cases.
+ 6. If the test script passes all of the tests then push the changes and open a pull request to incorporate the changes into this repository.
+
+If your changes require adding/removing options from the **params.h** or **geometry.config** files then make sure to update these files in each of the example case directories otherwise the example/testing scripts will fail.
