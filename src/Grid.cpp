@@ -75,8 +75,8 @@ void GridClass::lbmKernel() {
 				int id = i * Ny + j;
 
 				// Stream and collide in one go
-				streamCollide(i, j, id);
-
+				//streamCollide(i, j, id);
+                                streamCollideCentralMoments(i, j, id);
 				// Update fluid site macroscopic values
 				if (type[id] == eFluid)
 					macroscopic(id);
@@ -110,6 +110,38 @@ inline void GridClass::streamCollide(int i, int j, int id) {
 
 		// Only update if within the box
 		f[id * nVels + v] = f_n[src_id * nVels + v] + omega * (equilibrium(src_id, v) - f_n[src_id * nVels + v]) + latticeForce(src_id, v);
+	}
+}
+
+// Stream and collide in one go (pull algorithm) by central moments
+inline void GridClass::streamCollideCentralMoments(int i, int j, int id) {
+
+	double k4_star = 0., k5_star = 0.;
+	double CX, CY;
+	double R = rho_n[id];
+	double U = u_n[id * dims + eX];
+	double V = u_n[id * dims + eY];
+	for (int v = 0; v < nVels; v++) {
+		CX = c[v][eX]-U;
+		CY = c[v][eY]-V;
+		k4_star += f_n[id * nVels + v]*(CX*CX - CY*CY);
+		k5_star += f_n[id * nVels + v]*CX*CY;
+	}
+	k4_star *= 1.-omega;
+	k5_star *= 1.-omega;
+	double U2 = U*U, V2 = V*V, U2V2 = U2*V2, UV = U*V, U2V = U2*V, UV2 = U*V2;
+	f_2[id * nVels+0] = (U2V2-2.*U2/3.-2.*V2/3.+4/9.)*R+(V2-U2)*k4_star/2.+4.*UV*k5_star;
+	f_2[id * nVels+1] = (-U2V2/2.+U2/3.-UV2/2.+U/3.-V2/6.+1/9.)*R+(U2+U-V2+1.)*k4_star/4.+(-V-2.*UV)*k5_star;
+	f_2[id * nVels+2] = (-U2V2/2.+U2/3.+UV2/2.-U/3.-V2/6.+1/9.)*R+(U2-U-V2+1.)*k4_star/4.+(V-2.*UV)*k5_star;
+	f_2[id * nVels+3] = (-U2V2/2.-U2V/2.-U2/6.+V2/3.+V/3.+1/9.)*R+(U2-V2-V-1.)*k4_star/4.+(-U-2.*UV)*k5_star;
+	f_2[id * nVels+4] = (-U2V2/2.+U2V/2.-U2/6.+V2/3.-V/3.+1/9.)*R+(U2-V2+V-1.)*k4_star/4.+(U-2.*UV)*k5_star;
+	f_2[id * nVels+5] = (U2V2/4.+U2V/4.+U2/12.+UV2/4.+UV/4.+U/12.+V2/12.+V/12.+1/36.)*R+(-U2-U+V2+V)*k4_star/8.+(U/2.+V/2.+UV+1/4.)*k5_star;
+	f_2[id * nVels+6] = (U2V2/4.-U2V/4.+U2/12.-UV2/4.+UV/4.-U/12.+V2/12.-V/12.+1/36.)*R+(-U2+U+V2-V)*k4_star/8.+(UV-V/2.-U/2.+1/4.)*k5_star;
+	f_2[id * nVels+7] = (U2V2/4.-U2V/4.+U2/12.+UV2/4.-UV/4.+U/12.+V2/12.-V/12.+1/36.)*R+(-U2-U+V2-V)*k4_star/8.+(V/2.-U/2.+UV-1/4.)*k5_star;
+	f_2[id * nVels+8] = (U2V2/4.+U2V/4.+U2/12.-UV2/4.-UV/4.-U/12.+V2/12.+V/12.+1/36.)*R+(-U2+U+V2+V)*k4_star/8.+(U/2.-V/2.+UV-1/4.)*k5_star;
+	for (int v = 0; v < nVels; v++) {
+		int rec_id = ((i + c[v][eX] + Nx) % Nx) * Ny + ((j + c[v][eY] + Ny) % Ny);
+		f[rec_id * nVels + v] = f_2[id * nVels + v] + latticeForce(id, v);
 	}
 }
 
@@ -1128,6 +1160,7 @@ GridClass::GridClass() {
 	type.resize(Nx * Ny, eFluid);
 	f.resize(Nx * Ny * nVels, 0.0);
 	f_n.resize(Nx * Ny * nVels, 0.0);
+        f_2.resize(Nx * Ny * nVels, 0.0);
 
 	// Set sizes of helper arrays
 	u_in.resize(Ny * dims, 0.0);
