@@ -35,7 +35,7 @@ rm -rf $case/LIFE $case/Results
 cp $case/params.h ../inc/params.h
 
 # Build LIFE
-(cd ../. && make clean && make)
+(cd .. && make clean && make)
 
 # Copy LIFE to case folder
 cp ../LIFE $case/.
