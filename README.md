@@ -3,7 +3,8 @@
 A lattice Boltzmann-immersed boundary-finite element (LIFE) solver for fluid-structure interaction problems involving slender structures.
 
 ### Key Features
- - BGK lattice Boltzmann method (LBM)
+ - BGK collision operator
+ - central moments collision operator (De Rosis et al. 2019)
  - velocity and pressure boundary conditions set via the regularised method (Latt et al. 2008)
  - convective outlet condition (Yang 2013)
  - implicit immersed boundary method (IBM) for rigid and flexible structures (Li et al. 2016, Pinelli et al. 2010)
