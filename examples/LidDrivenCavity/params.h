@@ -26,30 +26,30 @@
 //#define THREADS 12
 
 // Set resFactor (for easily changing mesh resolution)
-const int resFactor = 2;
+const int resFactor = 1;
 
 // Simulation options
-//#define CENTRAL_MOMENTS			// Use central moments collision operator (BGK otherwise)
-#define INLET_RAMP 2.0				// Inlet velocity ramp-up
+#define CENTRAL_MOMENTS				// Use central moments collision operator (BGK otherwise)
+//#define INLET_RAMP 2.0			// Inlet velocity ramp-up
 //#define WOMERSLEY 5.0				// Womersley number for oscillating pressure gradients
-#define UNI_EPSILON					// Calculate epsilon over all IBM bodies at once
-#define ORDERED						// For deterministic reduction operations
+//#define UNI_EPSILON				// Calculate epsilon over all IBM bodies at once
+//#define ORDERED					// For deterministic reduction operations
 //#define INITIAL_DEFLECT 0.01		// Set an initial deflection (fraction of L)
 
 // Outputs
 #define VTK								// Write out VTK
 //#define VTK_FEM						// Write out the FEM VTK
-#define FORCES							// Write out forces on structures
-#define TIPS							// Write out tip positions
+//#define FORCES						// Write out forces on structures
+//#define TIPS							// Write out tip positions
 
 // Domain setup (lattice)
-const int Nx = resFactor * 250 + 1;   	// Number of lattice sites in x-direction
-const int Ny = resFactor * 41 + 1;		// Number of lattice sites in y-direction
+const int Nx = resFactor * 100 + 1;   	// Number of lattice sites in x-direction
+const int Ny = resFactor * 100 + 1;		// Number of lattice sites in y-direction
 
 // Domain setup (physical)
-const double height_p = 0.41;			// Domain height (m)
-const double rho_p = 1000.0;			// Fluid density (kg/m^3)
-const double nu_p = 0.001;				// Fluid kinematic viscosity (m^2/s)
+const double height_p = 1.0;			// Domain height (m)
+const double rho_p = 1.0;				// Fluid density (kg/m^3)
+const double nu_p = 0.0002;				// Fluid kinematic viscosity (m^2/s)
 
 // Initial conditions
 const double ux0_p = 0.0;				// Initial x-velocity (m/s)
@@ -62,11 +62,11 @@ const double dpdx = 0.0;				// Pressure gradient in x-direction (Pa/m)
 const double dpdy = 0.0;				// Pressure gradient in x-direction (Pa/m)
 
 // Boundary conditions (set to eFluid for periodic)
-#define WALL_LEFT	eVelocity			// Boundary condition at left wall
-#define WALL_RIGHT	ePressure			// Boundary condition at right wall
+#define WALL_LEFT	eWall				// Boundary condition at left wall
+#define WALL_RIGHT	eWall				// Boundary condition at right wall
 #define WALL_BOTTOM	eWall				// Boundary condition at bottom wall
-#define WALL_TOP	eWall				// Boundary condition at top wall
-#define PROFILE 	eParabolic			// Profile shape (uncomment for uniform)
+#define WALL_TOP	eVelocity			// Boundary condition at top wall
+//#define PROFILE 	eParabolic			// Profile shape (uncomment for uniform)
 
 // Inlet conditions
 const double uxInlet_p = 1.0;			// Inlet x-velocity (m/s)
@@ -94,16 +94,16 @@ const double omega = 1.0 / (nu_p * tStep / (pow(1.0 / sqrt(3.0), 2.0) * pow(heig
 //const double omega = 1.0 / (uLB * (Ny-1) / (uxInlet_p * height_p / (3.0 * nu_p)) + 0.5);
 
 // Number of time steps and how often to write out
-const int nSteps = 500;
-const int tinfo = nSteps / 50;
-const int tVTK = nSteps / 10;
-const int tRestart = nSteps / 5;
+const int nSteps = static_cast<int>(round(50.0 / tStep));	// Number of timesteps
+const int tinfo = nSteps / 1000;							// Frequency to write out info and logs
+const int tVTK = nSteps / 200;								// Frequency to write out VTK
+const int tRestart = nSteps / 100;							// Frequency to write out restart files
 
 // Reference values
 const double ref_nu = nu_p;			// Reference kinematic viscosity (m^2/s)
 const double ref_rho = rho_p;		// Reference density (kg/m^3)
 const double ref_P = 0.0;			// Reference pressure (Pa)
-const double ref_L = 0.1;			// Reference length (m)
+const double ref_L = 1.0;			// Reference length (m)
 const double ref_U = uxInlet_p;		// Reference velocity (m/s)
 
 // Precision for ASCII output
