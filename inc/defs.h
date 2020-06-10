@@ -28,8 +28,8 @@
 using namespace std;
 
 // Version and release date
-const string version = "v1.0.2";
-const string date = "7th February 2020";
+const string version = "v1.0.3";
+const string date = "10th June 2020";
 
 // Number of dimensions and lattice velocities
 const int dims = 2;
