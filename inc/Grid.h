@@ -114,12 +114,9 @@ private:
 
 	// LBM methods
 	void lbmKernel();															// Main LBM kernel
-	void streamCollide(int i, int j, int id);									// Stream and collide in one go (pull algorithm)
-	double collide(int src_id, int v);											// Collision step (wrapper)
-	double collideCM(int src_id, int v);										// Collision step (central moments)
-	double collideBGK(int src_id, int v);										// Collision step (BGK)
-	double equilibrium(int id, int v);											// Equilibrium function (wrapper)
-	double latticeForce(int id, int v);											// Discretise lattice force (BGK)
+	void streamCollide(int i, int j, int id);									// Stream and collide in one go (push algorithm)
+	double equilibrium(int id, int v);											// Equilibrium function
+	double latticeForce(int id, int v);											// Discretise lattice force (BGK only)
 	void macroscopic(int id);													// Compute macroscopic quantities
 	void applyBCs(int i, int j, int id);										// Apply boundary conditions
 	void convectiveSpeed();														// Get convective speed through right boundary
