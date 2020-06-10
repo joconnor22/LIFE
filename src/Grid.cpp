@@ -75,8 +75,8 @@ void GridClass::lbmKernel() {
 				int id = i * Ny + j;
 
 				// Stream and collide in one go
-				//streamCollide(i, j, id);
-                                streamCollideCentralMoments(i, j, id);
+				streamCollide(i, j, id);
+
 				// Update fluid site macroscopic values
 				if (type[id] == eFluid)
 					macroscopic(id);
@@ -102,67 +102,204 @@ void GridClass::lbmKernel() {
 // Stream and collide in one go (pull algorithm)
 inline void GridClass::streamCollide(int i, int j, int id) {
 
-	// Loop through all velocity directions
+	// Collide and stream (pull into this lattice site)
 	for (int v = 0; v < nVels; v++) {
 
 		// Calculate newx and newy then stream and collide
 		int src_id = ((i - c[v * dims + eX] + Nx) % Nx) * Ny + ((j - c[v * dims + eY] + Ny) % Ny);
 
-		// Only update if within the box
-		f[id * nVels + v] = f_n[src_id * nVels + v] + omega * (equilibrium(src_id, v) - f_n[src_id * nVels + v]) + latticeForce(src_id, v);
+		// Update new f
+		f[id * nVels + v] = collide(src_id, v);
 	}
 }
 
-// Stream and collide in one go (pull algorithm) by central moments
-inline void GridClass::streamCollideCentralMoments(int i, int j, int id) {
+// Collision step (wrapper)
+inline double GridClass::collide(int src_id, int v) {
+#ifdef CENTRAL_MOMENTS
+	return collideCM(src_id, v);	// Central moments
+#else
+	return collideBGK(src_id, v);	// BGK
+#endif
+}
 
-	double k4_star = 0., k5_star = 0.;
-	double CX, CY;
-	double R = rho_n[id];
-	double U = u_n[id * dims + eX];
-	double V = u_n[id * dims + eY];
-	for (int v = 0; v < nVels; v++) {
-		CX = c[v][eX]-U;
-		CY = c[v][eY]-V;
-		k4_star += f_n[id * nVels + v]*(CX*CX - CY*CY);
-		k5_star += f_n[id * nVels + v]*CX*CY;
+// Collision step (central moments)
+inline double GridClass::collideCM(int src_id, int v) {
+
+	// Declare running sums
+	double k4Pre = 0.0;
+	double k5Pre = 0.0;
+
+	// Loop through velocities on src_id
+	for (int src_v = 0; src_v < nVels; src_v++) {
+
+		// Shift lattice velocities
+		double cx = c[src_v * dims + eX] - u_n[src_id * dims + eX];
+		double cy = c[src_v * dims + eY] - u_n[src_id * dims + eY];
+
+		// Transform f to central moments (k)
+		k4Pre += f_n[src_id * nVels + src_v] * (SQ(cx) - SQ(cy));
+		k5Pre += f_n[src_id * nVels + src_v] * cx * cy;
 	}
-	k4_star *= 1.-omega;
-	k5_star *= 1.-omega;
-	double U2 = U*U, V2 = V*V, U2V2 = U2*V2, UV = U*V, U2V = U2*V, UV2 = U*V2;
-	f_2[id * nVels+0] = (U2V2-2.*U2/3.-2.*V2/3.+4/9.)*R+(V2-U2)*k4_star/2.+4.*UV*k5_star;
-	f_2[id * nVels+1] = (-U2V2/2.+U2/3.-UV2/2.+U/3.-V2/6.+1/9.)*R+(U2+U-V2+1.)*k4_star/4.+(-V-2.*UV)*k5_star;
-	f_2[id * nVels+2] = (-U2V2/2.+U2/3.+UV2/2.-U/3.-V2/6.+1/9.)*R+(U2-U-V2+1.)*k4_star/4.+(V-2.*UV)*k5_star;
-	f_2[id * nVels+3] = (-U2V2/2.-U2V/2.-U2/6.+V2/3.+V/3.+1/9.)*R+(U2-V2-V-1.)*k4_star/4.+(-U-2.*UV)*k5_star;
-	f_2[id * nVels+4] = (-U2V2/2.+U2V/2.-U2/6.+V2/3.-V/3.+1/9.)*R+(U2-V2+V-1.)*k4_star/4.+(U-2.*UV)*k5_star;
-	f_2[id * nVels+5] = (U2V2/4.+U2V/4.+U2/12.+UV2/4.+UV/4.+U/12.+V2/12.+V/12.+1/36.)*R+(-U2-U+V2+V)*k4_star/8.+(U/2.+V/2.+UV+1/4.)*k5_star;
-	f_2[id * nVels+6] = (U2V2/4.-U2V/4.+U2/12.-UV2/4.+UV/4.-U/12.+V2/12.-V/12.+1/36.)*R+(-U2+U+V2-V)*k4_star/8.+(UV-V/2.-U/2.+1/4.)*k5_star;
-	f_2[id * nVels+7] = (U2V2/4.-U2V/4.+U2/12.+UV2/4.-UV/4.+U/12.+V2/12.-V/12.+1/36.)*R+(-U2-U+V2-V)*k4_star/8.+(V/2.-U/2.+UV-1/4.)*k5_star;
-	f_2[id * nVels+8] = (U2V2/4.+U2V/4.+U2/12.-UV2/4.-UV/4.-U/12.+V2/12.+V/12.+1/36.)*R+(-U2+U+V2+V)*k4_star/8.+(U/2.-V/2.+UV-1/4.)*k5_star;
-	for (int v = 0; v < nVels; v++) {
-		int rec_id = ((i + c[v][eX] + Nx) % Nx) * Ny + ((j + c[v][eY] + Ny) % Ny);
-		f[rec_id * nVels + v] = f_2[id * nVels + v] + latticeForce(id, v);
+
+	// Get post-collision central moments
+	double k0 = rho_n[src_id];
+	double k1 = 0.5 * (force_xy[src_id * dims + eX] + force_ibm[src_id * dims + eX]);
+	double k2 = 0.5 * (force_xy[src_id * dims + eY] + force_ibm[src_id * dims + eY]);
+	double k3 = 2.0 * rho_n[src_id] * SQ(c_s);
+	double k4 = (1.0 - omega) * k4Pre;
+	double k5 = (1.0 - omega) * k5Pre;
+	double k6 = 0.5 * (force_xy[src_id * dims + eY] + force_ibm[src_id * dims + eY]) * SQ(c_s);
+	double k7 = 0.5 * (force_xy[src_id * dims + eX] + force_ibm[src_id * dims + eX]) * SQ(c_s);
+	double k8 = rho_n[src_id] * QU(c_s);
+
+	// Get velocity
+	double ux = u_n[src_id * dims + eX];
+	double uy = u_n[src_id * dims + eY];
+
+	// Which direction
+	switch (v) {
+		// 0
+		case 0:
+			return (SQ(ux) * SQ(uy) - SQ(ux) - SQ(uy) + 1.0) * k0
+					+ (2.0 * ux * SQ(uy) - 2.0 * ux) * k1
+					+ (2.0 * uy * SQ(ux) - 2.0 * uy) * k2
+					+ (0.5 * SQ(ux) + 0.5 * SQ(uy) - 1.0) * k3
+					+ (0.5 * SQ(uy) - 0.5 * SQ(ux)) * k4
+					+ 4.0 * ux * uy * k5
+					+ 2.0 * uy * k6
+					+ 2.0 * ux * k7
+					+ k8;
+		// 1
+		case 1:
+			return (0.5 * SQ(ux) - 0.5 * (SQ(ux) * SQ(uy)) - 0.5 * (ux * SQ(uy)) + 0.5 * ux) * k0
+					+ (ux - ux * SQ(uy) - 0.5 * SQ(uy) + 0.5) * k1
+					+ (-uy * SQ(ux) - uy * ux) * k2
+					+ (-0.25 * SQ(ux) - 0.25 * ux - 0.25 * SQ(uy) + 0.25) * k3
+					+ (0.25 * SQ(ux) + 0.25 * ux - 0.25 * SQ(uy) + 0.25) * k4
+					+ (-uy - 2.0 * ux * uy) * k5
+					+ (-uy) * k6
+					+ (-ux - 0.5) * k7
+					- 0.5 * k8;
+		// 2
+		case 2:
+			return (-0.5 * (SQ(ux) * SQ(uy)) + 0.5 * SQ(ux) + 0.5 * (ux * SQ(uy)) - 0.5 * ux) * k0
+					+ (ux - ux * SQ(uy) + 0.5 * SQ(uy) - 0.5) * k1
+					+ (-uy * SQ(ux) + uy * ux) * k2
+					+ (-0.25 * SQ(ux) + 0.25 * ux - 0.25 * SQ(uy) + 0.25) * k3
+					+ (0.25 * SQ(ux) - 0.25 * ux - 0.25 * SQ(uy) + 0.25) * k4
+					+ (uy - 2.0 * ux * uy) * k5
+					+ (-uy) * k6
+					+ (0.5 - ux) * k7
+					- 0.5 * k8;
+		// 3
+		case 3:
+			return (0.5 * SQ(uy) - 0.5 * (SQ(ux) * uy) - 0.5 * (SQ(ux) * SQ(uy)) + 0.5 * uy) * k0
+					+ (-ux * SQ(uy) - ux * uy) * k1
+					+ (uy - SQ(ux) * uy - 0.5 * SQ(ux) + 0.5) * k2
+					+ (-0.25 * SQ(ux) - 0.25 * SQ(uy) - 0.25 * uy + 0.25) * k3
+					+ (0.25 * SQ(ux) - 0.25 * SQ(uy) - 0.25 * uy - 0.25) * k4
+					+ (-ux - 2.0 * ux * uy) * k5
+					+ (-uy - 0.5) * k6
+					+ (-ux) * k7
+					- 0.5 * k8;
+		// 4
+		case 4:
+			return (-0.5 * (SQ(ux) * SQ(uy)) + 0.5 * (SQ(ux) * uy) + 0.5 * SQ(uy) - 0.5 * uy) * k0
+					+ (-ux * SQ(uy) + ux * uy) * k1
+					+ (uy - SQ(ux) * uy + 0.5 * SQ(ux) - 0.5) * k2
+					+ (-0.25 * SQ(ux) - 0.25 * SQ(uy) + 0.25 * uy + 0.25) * k3
+					+ (0.25 * SQ(ux) - 0.25 * SQ(uy) + 0.25 * uy - 0.25) * k4
+					+ (ux - 2.0 * ux * uy) * k5
+					+ (0.5 - uy) * k6
+					+ (-ux) * k7
+					- 0.5 * k8;
+		// 5
+		case 5:
+			return (0.25 * (SQ(ux) * SQ(uy)) + 0.25 * (SQ(ux) * uy) + 0.25 * (ux * SQ(uy)) + 0.25 * (ux * uy)) * k0
+					+ (0.25 * uy + 0.5 * (ux * uy) + 0.5 * (ux * SQ(uy)) + 0.25 * SQ(uy)) * k1
+					+ (0.25 * ux + 0.5 * (ux * uy) + 0.5 * (SQ(ux) * uy) + 0.25 * SQ(ux)) * k2
+					+ (0.125 * SQ(ux) + 0.125 * ux + 0.125 * SQ(uy) + 0.125 * uy) * k3
+					+ (-0.125 * SQ(ux) - 0.125 * ux + 0.125 * SQ(uy) + 0.125 * uy) * k4
+					+ (0.5 * ux + 0.5 * uy + ux * uy + 0.25) * k5
+					+ (0.5 * uy + 0.25) * k6
+					+ (0.5 * ux + 0.25) * k7
+					+ 0.25 * k8;
+		// 6
+		case 6:
+			return (0.25 * (SQ(ux) * SQ(uy)) - 0.25 * (SQ(ux) * uy) - 0.25 * (ux * SQ(uy)) + 0.25 * (ux * uy)) * k0
+					+ (0.25 * uy - 0.5 * (ux * uy) + 0.5 * (ux * SQ(uy)) - 0.25 * SQ(uy)) * k1
+					+ (0.25 * ux - 0.5 * (ux * uy) + 0.5 * (SQ(ux) * uy) - 0.25 * SQ(ux)) * k2
+					+ (0.125 * SQ(ux) - 0.125 * ux + 0.125 * SQ(uy) - 0.125 * uy) * k3
+					+ (-0.125 * SQ(ux) + 0.125 * ux + 0.125 * SQ(uy) - 0.125 * uy) * k4
+					+ (ux * uy - 0.5 * uy - 0.5 * ux + 0.25) * k5
+					+ (0.5 * uy - 0.25) * k6
+					+ (0.5 * ux - 0.25) * k7
+					+ 0.25 * k8;
+		// 7
+		case 7:
+			return (0.25 * (SQ(ux) * SQ(uy)) - 0.25 * (SQ(ux) * uy) + 0.25 * (ux * SQ(uy)) - 0.25 * (ux * uy)) * k0
+					+ (0.5 * (ux * SQ(uy)) - 0.5 * (ux * uy) - 0.25 * uy + 0.25 * SQ(uy)) * k1
+					+ (0.5 * (ux * uy) - 0.25 * ux + 0.5 * (SQ(ux) * uy) - 0.25 * SQ(ux)) * k2
+					+ (0.125 * SQ(ux) + 0.125 * ux + 0.125 * SQ(uy) - 0.125 * uy) * k3
+					+ (-0.125 * SQ(ux) - 0.125 * ux + 0.125 * SQ(uy) - 0.125 * uy) * k4
+					+ (0.5 * uy - 0.5 * ux + ux * uy - 0.25) * k5
+					+ (0.5 * uy - 0.25) * k6
+					+ (0.5 * ux + 0.25) * k7
+					+ 0.25 * k8;
+		// 8
+		case 8:
+			return (0.25 * (SQ(ux) * SQ(uy)) + 0.25 * (SQ(ux) * uy) - 0.25 * (ux * SQ(uy)) - 0.25 * (ux * uy)) * k0
+					+ (0.5 * (ux * uy) - 0.25 * uy + 0.5 * (ux * SQ(uy)) - 0.25 * SQ(uy)) * k1
+					+ (0.5 * (SQ(ux) * uy) - 0.5 * (ux * uy) - 0.25 * ux + 0.25 * SQ(ux)) * k2
+					+ (0.125 * SQ(ux) - 0.125 * ux + 0.125 * SQ(uy) + 0.125 * uy) * k3
+					+ (-0.125 * SQ(ux) + 0.125 * ux + 0.125 * SQ(uy) + 0.125 * uy) * k4
+					+ (0.5 * ux - 0.5 * uy + ux * uy - 0.25) * k5
+					+ (0.5 * uy + 0.25) * k6
+					+ (0.5 * ux - 0.25) * k7
+					+ 0.25 * k8;
+		// Default return
+		default:
+			return 0;
 	}
+}
+
+
+// Collision step (BGK)
+inline double GridClass::collideBGK(int src_id, int v) {
+	return f_n[src_id * nVels + v] + omega * (equilibrium(src_id, v) - f_n[src_id * nVels + v]) + (1.0 - 0.5 * omega) * latticeForce(src_id, v);
 }
 
 // Equilibrium function
 inline double GridClass::equilibrium(int id, int v) {
 
-	// Get constants
-	double C1 = SQ(u_n[id * dims + eX]) + SQ(u_n[id * dims + eY]);
-	double C2 = u_n[id * dims + eX] * c[v * dims + eX] + u_n[id * dims + eY] * c[v * dims + eY];
+	// Extract required quantities
+	int cx = c[v * dims + eX];
+	int cy = c[v * dims + eY];
+	double ux = u_n[id * dims + eX];
+	double uy = u_n[id * dims + eY];
 
-	// Return value
-	return rho_n[id] * w[v] * (1.0 + 3.0 * C2 + 4.5 * SQ(C2) - 1.5 * C1);
+#ifdef CENTRAL_MOMENTS
+	// Central moments (4th order Hermite)
+	return 0.25 * rho_n[id] * w[v] * (9.0 * SQ(cx) * SQ(ux) + 6.0 * cx * ux - 3.0 * SQ(ux) + 2.0) * (9.0 * SQ(cy) * SQ(uy) + 6.0 * cy * uy - 3.0 * SQ(uy) + 2.0);
+#else
+	// BGK (2nd order Hermite)
+	return rho_n[id] * w[v] * (1.0 + 3.0 * (cx * ux + cy * uy) + 4.5 * (SQ(ux) * (SQ(cx) - 1.0 / 3.0) + SQ(uy) * (SQ(cy) - 1.0  / 3.0)) + 9.0 * cx * cy * ux * uy);
+#endif
 }
 
-// Discretise cartesian force onto lattice
+// Discretise cartesian force onto lattice (BGK)
 inline double GridClass::latticeForce(int id, int v) {
 
+	// Extract required quantities
+	int cx = c[v * dims + eX];
+	int cy = c[v * dims + eY];
+	double ux = u_n[id * dims + eX];
+	double uy = u_n[id * dims + eY];
+	double Fx = force_xy[id * dims + eX] + force_ibm[id * dims + eX];
+	double Fy = force_xy[id * dims + eY] + force_ibm[id * dims + eY];
+
 	// Return value
-	return (1.0 - 0.5 * omega) * (w[v] / SQ(c_s)) *
-				((force_xy[id * dims + eX] + force_ibm[id * dims + eX]) * (c[v * dims + eX] - u_n[id * dims + eX] + c[v * dims + eX] * (c[v * dims + eX] * u_n[id * dims + eX] + c[v * dims + eY] * u_n[id * dims + eY]) / SQ(c_s)) +
-						((force_xy[id * dims + eY] + force_ibm[id * dims + eY]) * (c[v * dims + eY] - u_n[id * dims + eY] + c[v * dims + eY] * (c[v * dims + eX] * u_n[id * dims + eX] + c[v * dims + eY] * u_n[id * dims + eY]) / SQ(c_s))));
+	return 3.0 * w[v] * (Fx * (cx - ux + cx * 3.0 * (cx * ux + cy * uy)) + (Fy * (cy - uy + cy * 3.0 * (cx * ux + cy * uy))));
 }
 
 // Compute macroscopic quantities
@@ -1160,7 +1297,6 @@ GridClass::GridClass() {
 	type.resize(Nx * Ny, eFluid);
 	f.resize(Nx * Ny * nVels, 0.0);
 	f_n.resize(Nx * Ny * nVels, 0.0);
-        f_2.resize(Nx * Ny * nVels, 0.0);
 
 	// Set sizes of helper arrays
 	u_in.resize(Ny * dims, 0.0);

@@ -82,7 +82,6 @@ private:
 	vector<eLatType> type;					// Lattice type matrix
 	vector<double> f;						// Populations
 	vector<double> f_n;						// Populations (start of timestep)
-	vector<double> f_2;						// Populations (support for central moments LBM)
 
 	// Boundary conditions
 	vector<int> BCVec;						// Vector of site IDs to apply boundary conditions
@@ -116,9 +115,11 @@ private:
 	// LBM methods
 	void lbmKernel();															// Main LBM kernel
 	void streamCollide(int i, int j, int id);									// Stream and collide in one go (pull algorithm)
-        void streamCollideCentralMoments(int i, int j, int id);						// Stream and collide in one go (pull algorithm) by central moments
-	double equilibrium(int id, int v);											// Equilibrium function
-	double latticeForce (int id, int v);										// Discretise lattice force
+	double collide(int src_id, int v);											// Collision step (wrapper)
+	double collideCM(int src_id, int v);										// Collision step (central moments)
+	double collideBGK(int src_id, int v);										// Collision step (BGK)
+	double equilibrium(int id, int v);											// Equilibrium function (wrapper)
+	double latticeForce(int id, int v);											// Discretise lattice force (BGK)
 	void macroscopic(int id);													// Compute macroscopic quantities
 	void applyBCs(int i, int j, int id);										// Apply boundary conditions
 	void convectiveSpeed();														// Get convective speed through right boundary
