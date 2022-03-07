@@ -110,7 +110,7 @@ inline void GridClass::streamCollide(int i, int j, int id) {
 	double k5Pre = 0.0;
 
 	// Loop through velocities on src_id
-	for (int v = 0; v < nVels; v++) {
+	/*for (int v = 0; v < nVels; v++) {
 
 		// Shift lattice velocities
 		double cx = c[v * dims + eX] - u_n[id * dims + eX];
@@ -119,7 +119,16 @@ inline void GridClass::streamCollide(int i, int j, int id) {
 		// Transform f to central moments (k)
 		k4Pre += f_n[id * nVels + v] * (SQ(cx) - SQ(cy));
 		k5Pre += f_n[id * nVels + v] * cx * cy;
-	}
+	}*/
+	// Get velocity
+	double ux = u_n[id * dims + eX];
+	double uy = u_n[id * dims + eY];
+	double ux2 = ux*ux;
+	double uy2 = uy*uy;
+
+	// Required pre-collision central moments
+	double k4Pre = f_n[id * nVels + 1] + f_n[id * nVels + 2] - f_n[id * nVels + 3] - f_n[id * nVels + 4] + rho_n[id]*(uy*uy-ux*ux);
+	double k5Pre = f_n[id * nVels + 5] + f_n[id * nVels + 6] - f_n[id * nVels + 7] - f_n[id * nVels + 8] + rho_n[id]*ux*uy;
 
 	// Get post-collision central moments
 	double k0 = rho_n[id];
@@ -132,95 +141,29 @@ inline void GridClass::streamCollide(int i, int j, int id) {
 	double k7 = 0.5 * (force_xy[id * dims + eX] + force_ibm[id * dims + eX]) * SQ(c_s);
 	double k8 = rho_n[id] * QU(c_s);
 
-	// Get velocity
-	double ux = u_n[id * dims + eX];
-	double uy = u_n[id * dims + eY];
+	double r0 = k0;
+	double r1 = k1 + rho_n[id]*ux;
+	double r2 = k2 + rho_n[id]*uy;
+	double r3 = k3 + 2.0*ux*k1 + 2.0*uy*k2 + rho_n[id]*(ux2 + uy2);
+	double r4 = k4 + 2.0*ux*k1 - 2.0*uy*k2 + rho_n[id]*(ux2 - uy2);
+	double r5 = k5 + ux*k2 + uy*k1 + rho_n[id]*ux*uy;
+	double r6 = k6 + 2.0*ux*k5 + 0.5*uy*(k3+k4) + ux2*k2 + 2.0*ux*uy*k1 + rho_n[id]*ux2*uy;
+	double r7 = k7 + 0.5*ux*(k3-k4) + 2.0*uy*k5 + uy2*k1 + 2.0*ux*uy*k2 + rho_n[id]*ux*uy2;
+	double r8 = k8 + 2.0*ux*k7 + 2.0*uy*k6 + 0.5*k3*(ux2 + uy2) - 0.5*k4*(ux2 - uy2) + rho_n[id]*ux2*uy2 + 4.0*ux*uy*k5 + 2.0*ux*uy2*k1 + 2.0*ux2*uy*k2;
 
 	// Declare array
 	array<double, nVels> fStar;
 
-	// Set array (transform from central moments to f)
-	fStar[0] = (SQ(ux) * SQ(uy) - SQ(ux) - SQ(uy) + 1.0) * k0
-				+ (2.0 * ux * SQ(uy) - 2.0 * ux) * k1
-				+ (2.0 * uy * SQ(ux) - 2.0 * uy) * k2
-				+ (0.5 * SQ(ux) + 0.5 * SQ(uy) - 1.0) * k3
-				+ (0.5 * SQ(uy) - 0.5 * SQ(ux)) * k4
-				+ 4.0 * ux * uy * k5
-				+ 2.0 * uy * k6
-				+ 2.0 * ux * k7
-				+ k8;
-	fStar[1] = (0.5 * SQ(ux) - 0.5 * (SQ(ux) * SQ(uy)) - 0.5 * (ux * SQ(uy)) + 0.5 * ux) * k0
-				+ (ux - ux * SQ(uy) - 0.5 * SQ(uy) + 0.5) * k1
-				+ (-uy * SQ(ux) - uy * ux) * k2
-				+ (-0.25 * SQ(ux) - 0.25 * ux - 0.25 * SQ(uy) + 0.25) * k3
-				+ (0.25 * SQ(ux) + 0.25 * ux - 0.25 * SQ(uy) + 0.25) * k4
-				+ (-uy - 2.0 * ux * uy) * k5
-				+ (-uy) * k6
-				+ (-ux - 0.5) * k7
-				- 0.5 * k8;
-	fStar[2] = (-0.5 * (SQ(ux) * SQ(uy)) + 0.5 * SQ(ux) + 0.5 * (ux * SQ(uy)) - 0.5 * ux) * k0
-				+ (ux - ux * SQ(uy) + 0.5 * SQ(uy) - 0.5) * k1
-				+ (-uy * SQ(ux) + uy * ux) * k2
-				+ (-0.25 * SQ(ux) + 0.25 * ux - 0.25 * SQ(uy) + 0.25) * k3
-				+ (0.25 * SQ(ux) - 0.25 * ux - 0.25 * SQ(uy) + 0.25) * k4
-				+ (uy - 2.0 * ux * uy) * k5
-				+ (-uy) * k6
-				+ (0.5 - ux) * k7
-				- 0.5 * k8;
-	fStar[3] = (0.5 * SQ(uy) - 0.5 * (SQ(ux) * uy) - 0.5 * (SQ(ux) * SQ(uy)) + 0.5 * uy) * k0
-				+ (-ux * SQ(uy) - ux * uy) * k1
-				+ (uy - SQ(ux) * uy - 0.5 * SQ(ux) + 0.5) * k2
-				+ (-0.25 * SQ(ux) - 0.25 * SQ(uy) - 0.25 * uy + 0.25) * k3
-				+ (0.25 * SQ(ux) - 0.25 * SQ(uy) - 0.25 * uy - 0.25) * k4
-				+ (-ux - 2.0 * ux * uy) * k5
-				+ (-uy - 0.5) * k6
-				+ (-ux) * k7
-				- 0.5 * k8;
-	fStar[4] = (-0.5 * (SQ(ux) * SQ(uy)) + 0.5 * (SQ(ux) * uy) + 0.5 * SQ(uy) - 0.5 * uy) * k0
-				+ (-ux * SQ(uy) + ux * uy) * k1
-				+ (uy - SQ(ux) * uy + 0.5 * SQ(ux) - 0.5) * k2
-				+ (-0.25 * SQ(ux) - 0.25 * SQ(uy) + 0.25 * uy + 0.25) * k3
-				+ (0.25 * SQ(ux) - 0.25 * SQ(uy) + 0.25 * uy - 0.25) * k4
-				+ (ux - 2.0 * ux * uy) * k5
-				+ (0.5 - uy) * k6
-				+ (-ux) * k7
-				- 0.5 * k8;
-	fStar[5] = (0.25 * (SQ(ux) * SQ(uy)) + 0.25 * (SQ(ux) * uy) + 0.25 * (ux * SQ(uy)) + 0.25 * (ux * uy)) * k0
-				+ (0.25 * uy + 0.5 * (ux * uy) + 0.5 * (ux * SQ(uy)) + 0.25 * SQ(uy)) * k1
-				+ (0.25 * ux + 0.5 * (ux * uy) + 0.5 * (SQ(ux) * uy) + 0.25 * SQ(ux)) * k2
-				+ (0.125 * SQ(ux) + 0.125 * ux + 0.125 * SQ(uy) + 0.125 * uy) * k3
-				+ (-0.125 * SQ(ux) - 0.125 * ux + 0.125 * SQ(uy) + 0.125 * uy) * k4
-				+ (0.5 * ux + 0.5 * uy + ux * uy + 0.25) * k5
-				+ (0.5 * uy + 0.25) * k6
-				+ (0.5 * ux + 0.25) * k7
-				+ 0.25 * k8;
-	fStar[6] = (0.25 * (SQ(ux) * SQ(uy)) - 0.25 * (SQ(ux) * uy) - 0.25 * (ux * SQ(uy)) + 0.25 * (ux * uy)) * k0
-				+ (0.25 * uy - 0.5 * (ux * uy) + 0.5 * (ux * SQ(uy)) - 0.25 * SQ(uy)) * k1
-				+ (0.25 * ux - 0.5 * (ux * uy) + 0.5 * (SQ(ux) * uy) - 0.25 * SQ(ux)) * k2
-				+ (0.125 * SQ(ux) - 0.125 * ux + 0.125 * SQ(uy) - 0.125 * uy) * k3
-				+ (-0.125 * SQ(ux) + 0.125 * ux + 0.125 * SQ(uy) - 0.125 * uy) * k4
-				+ (ux * uy - 0.5 * uy - 0.5 * ux + 0.25) * k5
-				+ (0.5 * uy - 0.25) * k6
-				+ (0.5 * ux - 0.25) * k7
-				+ 0.25 * k8;
-	fStar[7] = (0.25 * (SQ(ux) * SQ(uy)) - 0.25 * (SQ(ux) * uy) + 0.25 * (ux * SQ(uy)) - 0.25 * (ux * uy)) * k0
-				+ (0.5 * (ux * SQ(uy)) - 0.5 * (ux * uy) - 0.25 * uy + 0.25 * SQ(uy)) * k1
-				+ (0.5 * (ux * uy) - 0.25 * ux + 0.5 * (SQ(ux) * uy) - 0.25 * SQ(ux)) * k2
-				+ (0.125 * SQ(ux) + 0.125 * ux + 0.125 * SQ(uy) - 0.125 * uy) * k3
-				+ (-0.125 * SQ(ux) - 0.125 * ux + 0.125 * SQ(uy) - 0.125 * uy) * k4
-				+ (0.5 * uy - 0.5 * ux + ux * uy - 0.25) * k5
-				+ (0.5 * uy - 0.25) * k6
-				+ (0.5 * ux + 0.25) * k7
-				+ 0.25 * k8;
-	fStar[8] = (0.25 * (SQ(ux) * SQ(uy)) + 0.25 * (SQ(ux) * uy) - 0.25 * (ux * SQ(uy)) - 0.25 * (ux * uy)) * k0
-				+ (0.5 * (ux * uy) - 0.25 * uy + 0.5 * (ux * SQ(uy)) - 0.25 * SQ(uy)) * k1
-				+ (0.5 * (SQ(ux) * uy) - 0.5 * (ux * uy) - 0.25 * ux + 0.25 * SQ(ux)) * k2
-				+ (0.125 * SQ(ux) - 0.125 * ux + 0.125 * SQ(uy) + 0.125 * uy) * k3
-				+ (-0.125 * SQ(ux) + 0.125 * ux + 0.125 * SQ(uy) + 0.125 * uy) * k4
-				+ (0.5 * ux - 0.5 * uy + ux * uy - 0.25) * k5
-				+ (0.5 * uy + 0.25) * k6
-				+ (0.5 * ux - 0.25) * k7
-				+ 0.25 * k8;
+	// Set array (transform from raw moments to f)
+	fStar[0] = r0 - r3 + r8;
+	fStar[1] = 0.5*(r1-r7-r8) + 0.25*(r3 + r4);
+	fStar[2] = 0.5*(-r1+r7-r8) + 0.25*(r3 + r4);
+	fStar[3] = 0.5*(r2-r6-r8) + 0.25*(r3 - r4);
+	fStar[4] = 0.5*(-r2+r6-r8) + 0.25*(r3 - r4);
+	fStar[5] = 0.25*(r5 + r6 + r7 + r8);
+	fStar[6] = 0.25*(r5 - r6 - r7 + r8);
+	fStar[7] = 0.25*(-r5 - r6 + r7 + r8);
+	fStar[8] = 0.25*(-r5 + r6 - r7 + r8);
 
 	// Now set to f
 	for (int v = 0; v < nVels; v++) {
