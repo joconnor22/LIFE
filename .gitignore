@@ -4,3 +4,4 @@
 /examples/**/Results/
 /obj/
 /testing/**/
+.DS_Store
