@@ -1,5 +1,5 @@
 pipeline {
-    agent { "ultron" }
+    agent { any }
     stages {
         stage('store') {
             steps {
