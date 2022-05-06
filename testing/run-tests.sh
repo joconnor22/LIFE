@@ -79,9 +79,15 @@ done
 printf "\n\n\nChecking against reference data...\n\n"
 
 # Set colors
-normal=$(tput sgr0)
-red=$(tput setaf 1)
-green=$(tput setaf 2)
+if [ -t 1 ]; then
+    normal=$(tput sgr0)
+    red=$(tput setaf 1)
+    green=$(tput setaf 2)
+else
+    normal=""
+    red=""
+    green=""
+fi
 
 # Number of fails
 nFails=0
