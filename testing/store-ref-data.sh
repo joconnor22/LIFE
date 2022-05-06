@@ -2,6 +2,12 @@
 
 # Setup some safe shell options
 set -eu -o pipefail
+shopt -s nullglob
+
+if [ ! -d ../examples ]; then
+    echo "../examples not found.  Please run store-ref-data.sh from the 'testing' directory." >&2
+    exit 1
+fi
 
 # Find all example cases
 for d in ../examples/*/
@@ -14,14 +20,14 @@ do
 	caseName=${casePath##*/}
 
 	# Print header
-	printf "\nStoring new $caseName RefData!\n\n"
+	printf "\nStoring new %s RefData!\n\n" "$caseName"
 
 	# Clean/create the case directory
-	rm -rf $caseName
-	mkdir $caseName
+	rm -rf "$caseName"
+	mkdir "$caseName"
 
 	# Copy params.h from examples into src folder
-	cp $casePath/params.h ../inc/params.h
+	cp "$casePath"/params.h ../inc/params.h
 
 	# Modifiy the write out frequencies for testing
 	sed -i "/const int nSteps/c\const int nSteps = 500;" ../inc/params.h
@@ -33,25 +39,25 @@ do
 	(cd .. && make clean && make -j 8)
 
 	# Create ref directory
-	mkdir $caseName/RefData
+	mkdir "$caseName"/RefData
 
 	# Copy case to RefData
-	cp ../LIFE $caseName/RefData/.
-	cp ../inc/params.h $caseName/RefData/.
+	cp ../LIFE "$caseName"/RefData/.
+	cp ../inc/params.h "$caseName"/RefData/.
 
 	# Check if there a geometry.config file
-	if [ -d $casePath/input ]; then
-		cp -r $casePath/input $caseName/RefData/.
+	if [ -d "$casePath"/input ]; then
+		cp -r "$casePath"/input "$caseName"/RefData/.
 	fi
 
 	# Run the case
-	(cd $caseName/RefData && ./LIFE)
+	(cd "$caseName"/RefData && ./LIFE)
 
 	# If TurekHron case then run again to test restart feature
-	if [ $caseName == "TurekHron" ]; then
-		(cd $caseName/RefData && ./LIFE)
+	if [ "$caseName" == "TurekHron" ]; then
+		(cd "$caseName"/RefData && ./LIFE)
 	fi
 
 	# Print finish
-	printf "Finished storing new $caseName RefData!\n\n"
+	printf "Finished storing new %s RefData!\n\n" "$caseName"
 done
