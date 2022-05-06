@@ -8,7 +8,7 @@ pipeline {
         }
         stage('test') {
             steps {
-                sh 'set -e; cd testing; ./run-tests.sh'
+                sh 'set -e; cd testing; TERM=dumb ./run-tests.sh'
             }
         }
     }
